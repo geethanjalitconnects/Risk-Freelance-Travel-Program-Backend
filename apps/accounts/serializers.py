@@ -31,21 +31,6 @@ class PhoneField(serializers.CharField):
             raise serializers.ValidationError(e.messages)
 
 
-class SendOTPSerializer(serializers.Serializer):
-    phone = PhoneField(max_length=20)
-
-
-class VerifyOTPSerializer(serializers.Serializer):
-    phone = PhoneField(max_length=20)
-    code = serializers.CharField(max_length=10)
-
-    def validate_code(self, value):
-        value = value.strip()
-        if not re.fullmatch(rf"[0-9]{{{settings.OTP_LENGTH}}}", value):
-            raise serializers.ValidationError(f"Enter the {settings.OTP_LENGTH}-digit code.")
-        return value
-
-
 class LowerEmailField(serializers.EmailField):
     def to_internal_value(self, data):
         return normalize_email(super().to_internal_value(data))
@@ -57,19 +42,17 @@ class SendEmailOTPSerializer(serializers.Serializer):
 
 class VerifyEmailOTPSerializer(SendEmailOTPSerializer):
     code = serializers.CharField(max_length=10)
-    validate_code = VerifyOTPSerializer.validate_code
+
+    def validate_code(self, value):
+        value = value.strip()
+        if not re.fullmatch(rf"[0-9]{{{settings.OTP_LENGTH}}}", value):
+            raise serializers.ValidationError(f"Enter the {settings.OTP_LENGTH}-digit code.")
+        return value
 
 
 class EmailOTPSentSerializer(serializers.Serializer):
     sent = serializers.BooleanField()
     email = serializers.CharField()
-    expires_in = serializers.IntegerField()
-    resend_in = serializers.IntegerField()
-
-
-class OTPSentSerializer(serializers.Serializer):
-    sent = serializers.BooleanField()
-    phone = serializers.CharField()
     expires_in = serializers.IntegerField()
     resend_in = serializers.IntegerField()
 

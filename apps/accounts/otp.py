@@ -1,9 +1,9 @@
-"""Sign-in codes (email, and phone during the transition): issue, rate-limit and verify.
+"""Email sign-in codes: issue, rate-limit and verify.
 
 * 6-digit codes from ``secrets``; only an HMAC (keyed with SECRET_KEY) is stored.
 * A code expires after OTP_TTL_SECONDS and allows OTP_MAX_ATTEMPTS wrong guesses.
-* Requesting a new code invalidates earlier ones for that address / number.
-* Per address / number: one code every OTP_RESEND_SECONDS, at most OTP_MAX_SENDS_PER_HOUR an hour.
+* Requesting a new code invalidates earlier ones for that address.
+* Per address: one code every OTP_RESEND_SECONDS, at most OTP_MAX_SENDS_PER_HOUR an hour.
   (Per-IP limits are applied by DRF throttles on the views.)
 """
 import hashlib
@@ -17,8 +17,7 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
-from .models import EmailOTP, PhoneOTP
-from .sms import SMSError, send_sms
+from .models import EmailOTP
 
 
 def _hash(ident: str, code: str) -> str:
@@ -53,11 +52,6 @@ class _Channel:
         return self.model.objects.filter(**{self.field: ident})
 
 
-def _send_text(phone, code):
-    minutes = settings.OTP_TTL_SECONDS // 60
-    send_sms(phone, f"{code} is your VConnects sign-in code. It expires in {minutes} minutes. Don't share it with anyone.")
-
-
 def _send_email(email, code):
     from django.core.mail import send_mail
 
@@ -75,20 +69,11 @@ def _send_email(email, code):
     )
 
 
-PHONE = _Channel(PhoneOTP, "phone", _send_text, "We couldn't send the code. Please try again.", "sms_failed")
 EMAIL = _Channel(EmailOTP, "email", _send_email, "We couldn't email the code. Please try again.", "email_failed")
-
-
-def issue(phone: str) -> Issued:
-    return _issue(PHONE, phone)
 
 
 def issue_email(email: str) -> Issued:
     return _issue(EMAIL, email)
-
-
-def verify(phone: str, code: str) -> None:
-    _verify(PHONE, phone, code)
 
 
 def verify_email(email: str, code: str) -> None:
@@ -116,7 +101,7 @@ def _issue(ch: _Channel, ident: str) -> Issued:
         )
     try:
         ch.deliver(ident, code)
-    except (SMSError, OSError) as e:  # OSError covers SMTP / socket failures
+    except OSError as e:  # SMTP / socket failures
         import logging
 
         logging.getLogger(__name__).warning("Sign-in code delivery failed (%s): %s", ch.field, type(e).__name__)

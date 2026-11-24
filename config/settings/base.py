@@ -259,15 +259,14 @@ OTP_RESEND_SECONDS = env.int("OTP_RESEND_SECONDS", default=30)
 OTP_MAX_ATTEMPTS = env.int("OTP_MAX_ATTEMPTS", default=5)
 OTP_MAX_SENDS_PER_HOUR = env.int("OTP_MAX_SENDS_PER_HOUR", default=5)
 
-# Dotted path to an apps.accounts.sms.BaseSMSBackend subclass. Ignored while DEBUG is on:
-# then codes are printed to the console (apps.accounts.sms.ConsoleSMSBackend).
-SMS_BACKEND = env("SMS_BACKEND", default="")
+# SMS is not used: sign-in codes go by email. Any leftover SMS call is dropped
+# (apps.accounts.sms.DisabledSMSBackend); in DEBUG it is printed to the console.
 
 # Prefix of the live-trip link texted to trusted contacts (the share token is appended).
 TRIP_SHARE_BASE_URL = env("TRIP_SHARE_BASE_URL", default="https://vconnects.example/track")
 
 # Extra notifiers called when an admin cancels a ride (dotted paths to callables taking a list of
-# bookings). The trip-log entry is always written; add an SMS notifier here once templates exist.
+# bookings). The trip-log entry is always written.
 RIDE_CANCELLED_NOTIFIERS = env.list("RIDE_CANCELLED_NOTIFIERS", default=[])
 
 # ---- Driver verification documents ----
